@@ -45,15 +45,15 @@ export function TrackList({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      {/* Header */}
+      {/* Header — compact single line */}
       {tracks.length > 0 && (
-        <div className="sticky top-0 z-10 bg-[var(--bg-primary)]/95 backdrop-blur-sm px-4 py-3 border-b border-[var(--border)]">
+        <div className="sticky top-0 z-10 bg-[var(--bg-primary)]/95 backdrop-blur-sm px-4 py-2 border-b border-[var(--border)] flex items-center justify-between">
           <h2 className="font-semibold text-sm">
             {currentFolderName || "Library"}
           </h2>
-          <p className="text-xs text-[var(--text-muted)] font-mono">
-            {tracks.length} track{tracks.length !== 1 ? "s" : ""}
-          </p>
+          <span className="text-xs text-[var(--text-muted)] font-mono">
+            {tracks.length} tracks
+          </span>
         </div>
       )}
 

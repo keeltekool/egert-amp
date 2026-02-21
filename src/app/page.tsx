@@ -182,9 +182,6 @@ export default function Home() {
   const handlePlayTrack = useCallback(
     (track: Track, index: number) => {
       player.playTrack(track, tracks, index);
-      if (window.innerWidth < 768) {
-        setTab("playing");
-      }
     },
     [player, tracks]
   );
@@ -204,9 +201,6 @@ export default function Home() {
     (track: Track, index: number) => {
       const liked = allCachedTracks.filter((t) => likedIds.has(t.id));
       player.playTrack(track, liked, index);
-      if (window.innerWidth < 768) {
-        setTab("playing");
-      }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [player, likedIds]
@@ -285,8 +279,8 @@ export default function Home() {
 
   return (
     <div className="h-dvh flex flex-col">
-      {/* Top bar */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] flex-shrink-0">
+      {/* Top bar — compact single line */}
+      <header className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)] flex-shrink-0">
         <div className="flex items-center gap-2">
           {breadcrumbs.length > 0 && (
             <button
