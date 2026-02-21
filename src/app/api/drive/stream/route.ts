@@ -16,25 +16,10 @@ export async function GET(req: NextRequest) {
   const rangeHeader = req.headers.get("range");
 
   try {
-    // First get file metadata for size and mime type
-    const metaRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?fields=size,mimeType,name`,
-      { headers: { Authorization: `Bearer ${session.accessToken}` } }
-    );
-
-    if (!metaRes.ok) {
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
-    }
-
-    const meta = await metaRes.json();
-    const fileSize = parseInt(meta.size, 10);
-
-    // Stream the file content from Drive
     const headers: Record<string, string> = {
       Authorization: `Bearer ${session.accessToken}`,
     };
 
-    // Support range requests for seeking
     if (rangeHeader) {
       headers["Range"] = rangeHeader;
     }
@@ -47,33 +32,29 @@ export async function GET(req: NextRequest) {
     if (!streamRes.ok && streamRes.status !== 206) {
       return NextResponse.json(
         { error: "Failed to stream file" },
-        { status: 500 }
+        { status: streamRes.status }
       );
     }
 
     const responseHeaders: Record<string, string> = {
-      "Content-Type": meta.mimeType || "audio/flac",
       "Accept-Ranges": "bytes",
-      "Cache-Control": "public, max-age=3600",
+      "Cache-Control": "public, max-age=86400, immutable",
     };
 
-    if (streamRes.status === 206) {
-      // Partial content response
-      const contentRange = streamRes.headers.get("content-range");
-      const contentLength = streamRes.headers.get("content-length");
-      if (contentRange) responseHeaders["Content-Range"] = contentRange;
-      if (contentLength) responseHeaders["Content-Length"] = contentLength;
-
-      return new NextResponse(streamRes.body, {
-        status: 206,
-        headers: responseHeaders,
-      });
+    // Pass through critical headers from Google
+    const passthrough = ["content-type", "content-length", "content-range"];
+    for (const key of passthrough) {
+      const val = streamRes.headers.get(key);
+      if (val) responseHeaders[key] = val;
     }
 
-    responseHeaders["Content-Length"] = fileSize.toString();
+    // Fallback content-type
+    if (!responseHeaders["content-type"]) {
+      responseHeaders["content-type"] = "audio/flac";
+    }
 
     return new NextResponse(streamRes.body, {
-      status: 200,
+      status: streamRes.status,
       headers: responseHeaders,
     });
   } catch (error) {

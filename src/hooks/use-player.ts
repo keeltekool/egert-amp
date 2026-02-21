@@ -18,6 +18,7 @@ function shuffleArray<T>(arr: T[]): T[] {
 
 export function usePlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const preloadRef = useRef<HTMLAudioElement | null>(null);
   const [state, setState] = useState<PlayerState>({
     currentTrack: null,
     queue: [],
@@ -31,11 +32,17 @@ export function usePlayer() {
     repeat: "off",
   });
 
-  // Initialize audio element
+  // Initialize audio elements
   useEffect(() => {
     const audio = new Audio();
     audio.preload = "auto";
     audioRef.current = audio;
+
+    // Hidden preload element for next track
+    const preload = new Audio();
+    preload.preload = "auto";
+    preload.volume = 0;
+    preloadRef.current = preload;
 
     // Restore volume
     const savedVolume = localStorage.getItem(VOLUME_KEY);
@@ -53,7 +60,6 @@ export function usePlayer() {
     const onPlay = () => setState((s) => ({ ...s, isPlaying: true }));
     const onPause = () => setState((s) => ({ ...s, isPlaying: false }));
     const onEnded = () => {
-      // Trigger next track logic
       handleTrackEnded();
     };
 
@@ -71,17 +77,31 @@ export function usePlayer() {
       audio.removeEventListener("ended", onEnded);
       audio.pause();
       audio.src = "";
+      preload.src = "";
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Preload next track when current track changes or queue advances
+  useEffect(() => {
+    const { queue, queueIndex } = state;
+    const nextIndex = queueIndex + 1;
+    if (nextIndex < queue.length && preloadRef.current) {
+      const nextTrack = queue[nextIndex];
+      const nextUrl = getStreamUrl(nextTrack.id);
+      if (preloadRef.current.src !== nextUrl) {
+        preloadRef.current.src = nextUrl;
+        preloadRef.current.load();
+      }
+    }
+  }, [state.queueIndex, state.queue]);
+
   // Handle track ended — next track logic
   const handleTrackEnded = useCallback(() => {
     setState((prev) => {
-      const { repeat, queue, queueIndex, shuffle } = prev;
+      const { repeat, queue, queueIndex } = prev;
 
       if (repeat === "one") {
-        // Replay same track
         if (audioRef.current) {
           audioRef.current.currentTime = 0;
           audioRef.current.play();
@@ -95,7 +115,6 @@ export function usePlayer() {
         if (repeat === "all") {
           nextIndex = 0;
         } else {
-          // End of queue, stop playing
           return { ...prev, isPlaying: false, currentTime: 0 };
         }
       }
@@ -130,7 +149,6 @@ export function usePlayer() {
       isPlaying: true,
     }));
 
-    // Save queue to localStorage
     try {
       localStorage.setItem(QUEUE_KEY, JSON.stringify({ tracks, index }));
     } catch {}
@@ -254,10 +272,27 @@ export function usePlayer() {
     });
   }, []);
 
+  // Merge metadata into queue and current track
+  const updateMetadata = useCallback(
+    (meta: Record<string, { title?: string; artist?: string; album?: string }>) => {
+      setState((prev) => {
+        const queue = prev.queue.map((t) => {
+          const m = meta[t.id];
+          return m ? { ...t, ...m } : t;
+        });
+        const currentTrack =
+          prev.currentTrack && meta[prev.currentTrack.id]
+            ? { ...prev.currentTrack, ...meta[prev.currentTrack.id] }
+            : prev.currentTrack;
+        return { ...prev, queue, currentTrack };
+      });
+    },
+    []
+  );
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't capture if user is typing in an input
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
@@ -315,5 +350,6 @@ export function usePlayer() {
     toggleShuffle,
     setRepeat,
     cycleRepeat,
+    updateMetadata,
   };
 }

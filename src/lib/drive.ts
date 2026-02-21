@@ -98,3 +98,7 @@ export async function listFolders(
 export function getStreamUrl(fileId: string): string {
   return `/api/drive/stream?fileId=${fileId}`;
 }
+
+export function getArtUrl(fileId: string): string {
+  return `/api/drive/art?fileId=${fileId}`;
+}

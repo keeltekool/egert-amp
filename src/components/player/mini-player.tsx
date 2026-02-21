@@ -1,15 +1,38 @@
 "use client";
 
-import { PlayIcon, PauseIcon, SkipNextIcon, MusicNoteIcon } from "@/components/ui/icons";
-import { Track } from "@/types/player";
+import {
+  PlayIcon,
+  PauseIcon,
+  SkipNextIcon,
+  SkipPrevIcon,
+  ShuffleIcon,
+  RepeatIcon,
+  RepeatOneIcon,
+  ChevronUpIcon,
+} from "@/components/ui/icons";
+import { AlbumArt } from "./album-art";
+import { Track, RepeatMode } from "@/types/player";
+
+function formatTime(seconds: number): string {
+  if (!seconds || !isFinite(seconds)) return "0:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 interface MiniPlayerProps {
   track: Track | null;
   isPlaying: boolean;
   currentTime: number;
   duration: number;
+  shuffle: boolean;
+  repeat: RepeatMode;
   onTogglePlay: () => void;
   onNext: () => void;
+  onPrev: () => void;
+  onSeek: (time: number) => void;
+  onToggleShuffle: () => void;
+  onCycleRepeat: () => void;
   onExpand: () => void;
 }
 
@@ -18,8 +41,14 @@ export function MiniPlayer({
   isPlaying,
   currentTime,
   duration,
+  shuffle,
+  repeat,
   onTogglePlay,
   onNext,
+  onPrev,
+  onSeek,
+  onToggleShuffle,
+  onCycleRepeat,
   onExpand,
 }: MiniPlayerProps) {
   if (!track) return null;
@@ -28,56 +57,113 @@ export function MiniPlayer({
   const displayName = track.title || track.name.replace(/\.[^/.]+$/, "");
 
   return (
-    <div className="fixed bottom-16 left-0 right-0 z-40 bg-[#111118] border-t border-white/5">
-      {/* Progress bar at top of mini player */}
-      <div className="h-0.5 bg-white/5">
-        <div
-          className="h-full bg-[#39ff14] transition-all duration-300"
-          style={{ width: `${progress}%` }}
-        />
+    <div className="fixed bottom-16 left-0 right-0 z-40 bg-[var(--bg-secondary)] border-t-2 border-[var(--border)] shadow-[0_-2px_10px_rgba(0,0,0,0.12)]">
+      {/* Seek bar with times */}
+      <div className="flex items-center gap-2 px-3 pt-2">
+        <span className="text-[10px] font-mono text-[var(--text-muted)] w-8 text-right">
+          {formatTime(currentTime)}
+        </span>
+        <div className="flex-1 relative h-6 flex items-center">
+          <input
+            type="range"
+            min={0}
+            max={duration || 1}
+            value={currentTime}
+            onChange={(e) => onSeek(parseFloat(e.target.value))}
+            className="w-full h-1 appearance-none rounded-full outline-none cursor-pointer
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
+              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--accent)]
+              [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3
+              [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[var(--accent)] [&::-moz-range-thumb]:border-0"
+            style={{
+              background: `linear-gradient(to right, var(--accent) ${progress}%, var(--track-bg) ${progress}%)`,
+            }}
+          />
+        </div>
+        <span className="text-[10px] font-mono text-[var(--text-muted)] w-8">
+          {formatTime(duration)}
+        </span>
       </div>
 
-      <div
-        className="flex items-center gap-3 px-4 py-2 cursor-pointer"
-        onClick={onExpand}
-      >
-        {/* Track art placeholder */}
-        <div className="w-10 h-10 rounded bg-white/5 flex items-center justify-center flex-shrink-0">
-          <MusicNoteIcon className="w-5 h-5 text-[#39ff14]/50" />
-        </div>
+      {/* Main row: art + info + controls + expand */}
+      <div className="flex items-center gap-3 px-3 pb-2 pt-1">
+        {/* Album art — bigger */}
+        <AlbumArt fileId={track.id} size="md" />
 
         {/* Track info */}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{displayName}</p>
-          <p className="text-xs text-white/40 truncate">
+          <p className="text-xs text-[var(--text-muted)] truncate">
             {track.artist || "Unknown artist"}
           </p>
         </div>
 
-        {/* Controls */}
+        {/* Transport controls */}
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={onToggleShuffle}
+            className={`p-1.5 rounded-full transition-colors ${
+              shuffle
+                ? "text-[var(--accent)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+            }`}
+            title="Shuffle"
+          >
+            <ShuffleIcon className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={onPrev}
+            className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            title="Previous"
+          >
+            <SkipPrevIcon className="w-5 h-5" />
+          </button>
+
+          <button
+            onClick={onTogglePlay}
+            className="p-2 bg-[var(--accent)] text-[var(--play-btn-text)] rounded-full transition-all active:scale-95 mx-0.5"
+            title={isPlaying ? "Pause" : "Play"}
+          >
+            {isPlaying ? (
+              <PauseIcon className="w-5 h-5" />
+            ) : (
+              <PlayIcon className="w-5 h-5" />
+            )}
+          </button>
+
+          <button
+            onClick={onNext}
+            className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            title="Next"
+          >
+            <SkipNextIcon className="w-5 h-5" />
+          </button>
+
+          <button
+            onClick={onCycleRepeat}
+            className={`p-1.5 rounded-full transition-colors ${
+              repeat !== "off"
+                ? "text-[var(--accent)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+            }`}
+            title={`Repeat: ${repeat}`}
+          >
+            {repeat === "one" ? (
+              <RepeatOneIcon className="w-4 h-4" />
+            ) : (
+              <RepeatIcon className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+
+        {/* Expand to full Now Playing */}
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onTogglePlay();
-          }}
-          className="p-2 text-white"
-          title={isPlaying ? "Pause" : "Play"}
+          onClick={onExpand}
+          className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors ml-1"
+          title="Expand"
         >
-          {isPlaying ? (
-            <PauseIcon className="w-6 h-6" />
-          ) : (
-            <PlayIcon className="w-6 h-6" />
-          )}
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onNext();
-          }}
-          className="p-2 text-white/50"
-          title="Next"
-        >
-          <SkipNextIcon className="w-5 h-5" />
+          <ChevronUpIcon className="w-4 h-4" />
         </button>
       </div>
     </div>

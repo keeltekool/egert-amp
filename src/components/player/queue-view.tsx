@@ -1,6 +1,7 @@
 "use client";
 
 import { MusicNoteIcon, PlayIcon, PauseIcon } from "@/components/ui/icons";
+import { AlbumArt } from "./album-art";
 import { Track } from "@/types/player";
 
 interface QueueViewProps {
@@ -21,9 +22,9 @@ export function QueueView({
   if (queue.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8">
-        <MusicNoteIcon className="w-12 h-12 text-white/10" />
-        <p className="text-white/30 text-sm">Queue is empty</p>
-        <p className="text-white/20 text-xs">Play a track to build your queue</p>
+        <MusicNoteIcon className="w-12 h-12 text-[var(--text-icon)]" />
+        <p className="text-[var(--text-muted)] text-sm">Queue is empty</p>
+        <p className="text-[var(--text-faint)] text-xs">Play a track to build your queue</p>
       </div>
     );
   }
@@ -35,24 +36,27 @@ export function QueueView({
     <div className="flex-1 overflow-y-auto">
       {/* Now Playing */}
       {currentTrack && (
-        <div className="px-4 py-3 border-b border-white/5">
-          <p className="text-xs font-mono text-[#39ff14]/60 uppercase tracking-widest mb-2">
+        <div className="px-4 py-3 border-b border-[var(--border)]">
+          <p className="text-xs font-mono text-[var(--accent-muted)] uppercase tracking-widest mb-2">
             Now Playing
           </p>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded bg-[#39ff14]/10 flex items-center justify-center flex-shrink-0">
-              {isPlaying ? (
-                <PauseIcon className="w-4 h-4 text-[#39ff14]" />
-              ) : (
-                <PlayIcon className="w-4 h-4 text-[#39ff14]" />
-              )}
+            <div className="relative flex-shrink-0">
+              <AlbumArt fileId={currentTrack.id} size="sm" />
+              <div className="absolute inset-0 rounded-lg bg-black/40 flex items-center justify-center">
+                {isPlaying ? (
+                  <PauseIcon className="w-4 h-4 text-white" />
+                ) : (
+                  <PlayIcon className="w-4 h-4 text-white" />
+                )}
+              </div>
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-[#39ff14] truncate">
+              <p className="text-sm font-medium text-[var(--accent)] truncate">
                 {currentTrack.title ||
                   currentTrack.name.replace(/\.[^/.]+$/, "")}
               </p>
-              <p className="text-xs text-white/30 truncate">
+              <p className="text-xs text-[var(--text-muted)] truncate">
                 {currentTrack.artist || "Unknown artist"}
               </p>
             </div>
@@ -63,7 +67,7 @@ export function QueueView({
       {/* Up Next */}
       {upNext.length > 0 && (
         <div className="px-4 py-3">
-          <p className="text-xs font-mono text-white/30 uppercase tracking-widest mb-2">
+          <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-widest mb-2">
             Up Next · {upNext.length} track{upNext.length !== 1 ? "s" : ""}
           </p>
           {upNext.map((track, i) => {
@@ -75,16 +79,14 @@ export function QueueView({
               <button
                 key={`${track.id}-${actualIndex}`}
                 onClick={() => onPlayTrack(track, actualIndex)}
-                className="w-full flex items-center gap-3 py-2.5 hover:bg-white/5 rounded transition-colors text-left"
+                className="w-full flex items-center gap-3 py-2.5 hover:bg-[var(--bg-hover)] rounded transition-colors text-left"
               >
-                <span className="text-xs font-mono text-white/20 w-6 text-right">
-                  {i + 1}
-                </span>
+                <AlbumArt fileId={track.id} size="sm" />
                 <div className="min-w-0">
-                  <p className="text-sm text-white/70 truncate">
+                  <p className="text-sm text-[var(--text-secondary)] truncate">
                     {displayName}
                   </p>
-                  <p className="text-xs text-white/30 truncate">
+                  <p className="text-xs text-[var(--text-muted)] truncate">
                     {track.artist || "Unknown artist"}
                   </p>
                 </div>
@@ -96,8 +98,8 @@ export function QueueView({
 
       {/* Already Played */}
       {played.length > 0 && (
-        <div className="px-4 py-3 border-t border-white/5">
-          <p className="text-xs font-mono text-white/20 uppercase tracking-widest mb-2">
+        <div className="px-4 py-3 border-t border-[var(--border)]">
+          <p className="text-xs font-mono text-[var(--text-faint)] uppercase tracking-widest mb-2">
             Played
           </p>
           {played.map((track, i) => {
@@ -108,12 +110,12 @@ export function QueueView({
               <button
                 key={`${track.id}-played-${i}`}
                 onClick={() => onPlayTrack(track, i)}
-                className="w-full flex items-center gap-3 py-2 hover:bg-white/5 rounded transition-colors text-left opacity-50"
+                className="w-full flex items-center gap-3 py-2 hover:bg-[var(--bg-hover)] rounded transition-colors text-left opacity-50"
               >
-                <span className="text-xs font-mono text-white/20 w-6 text-right">
+                <span className="text-xs font-mono text-[var(--text-faint)] w-6 text-right">
                   {i + 1}
                 </span>
-                <p className="text-sm text-white/50 truncate">{displayName}</p>
+                <p className="text-sm text-[var(--text-secondary)] truncate">{displayName}</p>
               </button>
             );
           })}

@@ -1,6 +1,7 @@
 "use client";
 
 import { MusicNoteIcon, PlayIcon, PauseIcon, FolderIcon } from "@/components/ui/icons";
+import { AlbumArt } from "./album-art";
 import { Track } from "@/types/player";
 import { DriveFolder } from "@/lib/drive";
 
@@ -31,8 +32,8 @@ export function TrackList({
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-[#39ff14]/30 border-t-[#39ff14] rounded-full animate-spin" />
-          <p className="text-white/30 font-mono text-sm">Loading library...</p>
+          <div className="w-8 h-8 border-2 border-[var(--accent)]/30 border-t-[var(--accent)] rounded-full animate-spin" />
+          <p className="text-[var(--text-muted)] font-mono text-sm">Loading library...</p>
         </div>
       </div>
     );
@@ -42,25 +43,25 @@ export function TrackList({
     <div className="flex-1 overflow-y-auto">
       {/* Header with play all */}
       {tracks.length > 0 && (
-        <div className="sticky top-0 z-10 bg-[#0a0a0f]/95 backdrop-blur-sm px-4 py-3 flex items-center justify-between border-b border-white/5">
+        <div className="sticky top-0 z-10 bg-[var(--bg-primary)]/95 backdrop-blur-sm px-4 py-3 flex items-center justify-between border-b border-[var(--border)]">
           <div>
             <h2 className="font-semibold text-sm">
               {currentFolderName || "Library"}
             </h2>
-            <p className="text-xs text-white/30 font-mono">
+            <p className="text-xs text-[var(--text-muted)] font-mono">
               {tracks.length} track{tracks.length !== 1 ? "s" : ""}
             </p>
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => onPlayAll(false)}
-              className="px-3 py-1.5 text-xs font-mono bg-[#39ff14]/10 text-[#39ff14] rounded-full hover:bg-[#39ff14]/20 transition-colors"
+              className="px-3 py-1.5 text-xs font-mono bg-[var(--accent-soft)] text-[var(--accent)] rounded-full hover:bg-[var(--accent)]/20 transition-colors"
             >
               Play All
             </button>
             <button
               onClick={() => onPlayAll(true)}
-              className="px-3 py-1.5 text-xs font-mono bg-white/5 text-white/60 rounded-full hover:bg-white/10 transition-colors"
+              className="px-3 py-1.5 text-xs font-mono bg-[var(--bg-card)] text-[var(--text-secondary)] rounded-full hover:bg-[var(--bg-hover)] transition-colors"
             >
               Shuffle
             </button>
@@ -73,10 +74,10 @@ export function TrackList({
         <button
           key={folder.id}
           onClick={() => onOpenFolder(folder)}
-          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left"
+          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--bg-hover)] transition-colors text-left"
         >
-          <div className="w-10 h-10 rounded bg-[#39ff14]/10 flex items-center justify-center flex-shrink-0">
-            <FolderIcon className="w-5 h-5 text-[#39ff14]/60" />
+          <div className="w-10 h-10 rounded bg-[var(--accent-soft)] flex items-center justify-center flex-shrink-0">
+            <FolderIcon className="w-5 h-5 text-[var(--accent-muted)]" />
           </div>
           <span className="text-sm font-medium truncate">{folder.name}</span>
         </button>
@@ -91,33 +92,37 @@ export function TrackList({
           <button
             key={track.id}
             onClick={() => onPlayTrack(track, index)}
-            className={`w-full flex items-center gap-3 px-4 py-3 transition-colors text-left ${
+            className={`group/row w-full flex items-center gap-3 px-4 py-3 transition-colors text-left ${
               isCurrent
-                ? "bg-[#39ff14]/5 border-l-2 border-[#39ff14]"
-                : "hover:bg-white/5 border-l-2 border-transparent"
+                ? "bg-[var(--bg-active)] border-l-2 border-[var(--accent)]"
+                : "hover:bg-[var(--bg-hover)] border-l-2 border-transparent"
             }`}
           >
-            {/* Track number / play indicator */}
-            <div className="w-10 h-10 rounded bg-white/5 flex items-center justify-center flex-shrink-0">
-              {isCurrent && isPlaying ? (
-                <PauseIcon className="w-4 h-4 text-[#39ff14]" />
-              ) : isCurrent ? (
-                <PlayIcon className="w-4 h-4 text-[#39ff14]" />
-              ) : (
-                <MusicNoteIcon className="w-4 h-4 text-white/20" />
+            <div className="relative flex-shrink-0">
+              <AlbumArt fileId={track.id} size="sm" />
+              {/* Always-visible overlay for current track */}
+              {isCurrent && (
+                <div className="absolute inset-0 rounded-lg bg-black/40 flex items-center justify-center group-hover/row:bg-black/50">
+                  {isPlaying ? (
+                    <PauseIcon className="w-4 h-4 text-white" />
+                  ) : (
+                    <PlayIcon className="w-4 h-4 text-white" />
+                  )}
+                </div>
+              )}
+              {/* Hover-only overlay for non-current tracks */}
+              {!isCurrent && (
+                <div className="absolute inset-0 rounded-lg bg-black/40 flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-opacity">
+                  <PlayIcon className="w-4 h-4 text-white" />
+                </div>
               )}
             </div>
 
-            {/* Track info */}
             <div className="flex-1 min-w-0">
-              <p
-                className={`text-sm truncate ${
-                  isCurrent ? "text-[#39ff14] font-medium" : "text-white/80"
-                }`}
-              >
+              <p className={`text-sm truncate ${isCurrent ? "text-[var(--accent)] font-medium" : ""}`}>
                 {displayName}
               </p>
-              <p className="text-xs text-white/30 truncate font-mono">
+              <p className="text-xs text-[var(--text-muted)] truncate font-mono">
                 {track.artist || track.mimeType.split("/")[1]?.toUpperCase() || "FLAC"}
                 {track.size &&
                   ` · ${(parseInt(track.size, 10) / 1048576).toFixed(0)} MB`}
@@ -129,9 +134,9 @@ export function TrackList({
 
       {tracks.length === 0 && folders.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-          <MusicNoteIcon className="w-12 h-12 text-white/10 mb-3" />
-          <p className="text-white/30 text-sm">No audio files found</p>
-          <p className="text-white/20 text-xs mt-1">
+          <MusicNoteIcon className="w-12 h-12 text-[var(--text-icon)] mb-3" />
+          <p className="text-[var(--text-muted)] text-sm">No audio files found</p>
+          <p className="text-[var(--text-faint)] text-xs mt-1">
             Add FLAC files to your Google Drive folder
           </p>
         </div>
