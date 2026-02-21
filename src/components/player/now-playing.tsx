@@ -57,9 +57,9 @@ export function NowPlaying({
   const displayName = track.title || track.name.replace(/\.[^/.]+$/, "");
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-between p-6 pb-4 max-w-lg mx-auto w-full">
-      {/* Header with back button */}
-      <div className="w-full flex items-center justify-between mb-4">
+    <div className="flex-1 flex flex-col items-center p-6 pb-4 max-w-lg mx-auto w-full overflow-hidden">
+      {/* Header with back button — fixed height */}
+      <div className="w-full flex items-center justify-between flex-shrink-0 mb-2">
         <button onClick={onClose} className="flex items-center gap-1 p-2 -ml-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
           <ChevronLeftIcon className="w-5 h-5" />
           <span className="text-xs font-mono uppercase tracking-widest">Library</span>
@@ -70,13 +70,13 @@ export function NowPlaying({
         <div className="w-20" />
       </div>
 
-      {/* Album art area */}
-      <div className="flex-1 flex items-center justify-center w-full max-h-[50vh]">
+      {/* Album art — shrinks to fit, never pushes controls out */}
+      <div className="flex-1 flex items-center justify-center w-full min-h-0">
         <AlbumArt fileId={track.id} size="lg" className="shadow-[0_0_40px_var(--glow-art)]" />
       </div>
 
-      {/* Track info + heart */}
-      <div className="w-full mt-6 mb-4">
+      {/* Track info + heart — fixed height */}
+      <div className="w-full mt-3 mb-2 flex-shrink-0">
         <div className="flex items-center justify-center gap-3 px-4">
           <h2 className="text-lg font-semibold truncate">{displayName}</h2>
           <button
@@ -93,13 +93,13 @@ export function NowPlaying({
         <p className="text-sm text-[var(--text-muted)] mt-1 truncate text-center">
           {track.artist || "Unknown artist"}
         </p>
-        <p className="text-xs font-mono text-[var(--text-faint)] mt-2 text-center">
+        <p className="text-xs font-mono text-[var(--text-faint)] mt-1 text-center">
           {queueIndex + 1} / {queueLength}
         </p>
       </div>
 
-      {/* Controls */}
-      <div className="w-full">
+      {/* Controls — ALWAYS visible, never pushed off screen */}
+      <div className="w-full flex-shrink-0">
         <PlayerControls
           isPlaying={isPlaying}
           currentTime={currentTime}
