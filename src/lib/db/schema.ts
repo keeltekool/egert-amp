@@ -11,3 +11,14 @@ export const likes = pgTable(
   },
   (t) => [primaryKey({ columns: [t.userEmail, t.fileId] })]
 );
+
+// Metadata cache — parsed once from FLAC, stored forever
+export const trackMetadata = pgTable("track_metadata", {
+  fileId: text("file_id").primaryKey(),
+  title: text("title"),
+  artist: text("artist"),
+  album: text("album"),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});

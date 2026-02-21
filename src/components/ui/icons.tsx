@@ -137,6 +137,22 @@ export function HeartFilledIcon({ className = "w-5 h-5" }: { className?: string 
   );
 }
 
+export function QueueAddIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M13 10H3v2h10v-2zm0-4H3v2h10V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM3 16h6v-2H3v2z" />
+    </svg>
+  );
+}
+
+export function CloseIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+    </svg>
+  );
+}
+
 export function SunIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">

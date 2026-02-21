@@ -1,89 +1,80 @@
 "use client";
 
-import { MusicNoteIcon, PlayIcon, PauseIcon } from "@/components/ui/icons";
+import { MusicNoteIcon, PlayIcon, CloseIcon } from "@/components/ui/icons";
 import { AlbumArt } from "./album-art";
 import { Track } from "@/types/player";
 
 interface QueueViewProps {
-  queue: Track[];
-  queueIndex: number;
+  userQueue: Track[];
   currentTrack: Track | null;
-  isPlaying: boolean;
-  onPlayTrack: (track: Track, index: number) => void;
+  onPlayFromQueue: (index: number) => void;
+  onRemoveFromQueue: (index: number) => void;
+  onClearQueue: () => void;
 }
 
 export function QueueView({
-  queue,
-  queueIndex,
+  userQueue,
   currentTrack,
-  isPlaying,
-  onPlayTrack,
+  onPlayFromQueue,
+  onRemoveFromQueue,
+  onClearQueue,
 }: QueueViewProps) {
-  if (queue.length === 0) {
+  if (userQueue.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8">
         <MusicNoteIcon className="w-12 h-12 text-[var(--text-icon)]" />
         <p className="text-[var(--text-muted)] text-sm">Queue is empty</p>
-        <p className="text-[var(--text-faint)] text-xs">Play a track to build your queue</p>
+        <p className="text-[var(--text-faint)] text-xs text-center">
+          Tap the queue button on any track to add it here
+        </p>
       </div>
     );
   }
 
-  const upNext = queue.slice(queueIndex + 1);
-  const played = queue.slice(0, queueIndex);
-
   return (
     <div className="flex-1 overflow-y-auto">
-      {/* Now Playing */}
-      {currentTrack && (
-        <div className="px-4 py-3 border-b border-[var(--border)]">
-          <p className="text-xs font-mono text-[var(--accent-muted)] uppercase tracking-widest mb-2">
-            Now Playing
+      {/* Header with Clear All */}
+      <div className="sticky top-0 z-10 bg-[var(--bg-primary)]/95 backdrop-blur-sm px-4 py-3 flex items-center justify-between border-b border-[var(--border)]">
+        <div>
+          <h2 className="font-semibold text-sm">Queue</h2>
+          <p className="text-xs text-[var(--text-muted)] font-mono">
+            {userQueue.length} track{userQueue.length !== 1 ? "s" : ""}
           </p>
-          <div className="flex items-center gap-3">
-            <div className="relative flex-shrink-0">
-              <AlbumArt fileId={currentTrack.id} size="sm" />
-              <div className="absolute inset-0 rounded-lg bg-black/40 flex items-center justify-center">
-                {isPlaying ? (
-                  <PauseIcon className="w-4 h-4 text-white" />
-                ) : (
-                  <PlayIcon className="w-4 h-4 text-white" />
-                )}
-              </div>
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-[var(--accent)] truncate">
-                {currentTrack.title ||
-                  currentTrack.name.replace(/\.[^/.]+$/, "")}
-              </p>
-              <p className="text-xs text-[var(--text-muted)] truncate">
-                {currentTrack.artist || "Unknown artist"}
-              </p>
-            </div>
-          </div>
         </div>
-      )}
+        <button
+          onClick={onClearQueue}
+          className="px-3 py-1.5 text-xs font-mono bg-[var(--bg-card)] text-[var(--text-secondary)] rounded-full hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] transition-colors"
+        >
+          Clear All
+        </button>
+      </div>
 
-      {/* Up Next */}
-      {upNext.length > 0 && (
-        <div className="px-4 py-3">
-          <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-widest mb-2">
-            Up Next · {upNext.length} track{upNext.length !== 1 ? "s" : ""}
-          </p>
-          {upNext.map((track, i) => {
-            const displayName =
-              track.title || track.name.replace(/\.[^/.]+$/, "");
-            const actualIndex = queueIndex + 1 + i;
+      {/* Up Next — only user-added tracks */}
+      <div className="px-4 py-3">
+        <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-widest mb-2">
+          Up Next
+        </p>
+        {userQueue.map((track, index) => {
+          const displayName = track.title || track.name.replace(/\.[^/.]+$/, "");
+          const isCurrent = currentTrack?.id === track.id;
 
-            return (
+          return (
+            <div
+              key={`${track.id}-${index}`}
+              className="group/qrow flex items-center gap-3 py-2.5 hover:bg-[var(--bg-hover)] rounded transition-colors"
+            >
               <button
-                key={`${track.id}-${actualIndex}`}
-                onClick={() => onPlayTrack(track, actualIndex)}
-                className="w-full flex items-center gap-3 py-2.5 hover:bg-[var(--bg-hover)] rounded transition-colors text-left"
+                onClick={() => onPlayFromQueue(index)}
+                className="flex-1 flex items-center gap-3 min-w-0 text-left"
               >
-                <AlbumArt fileId={track.id} size="sm" />
+                <div className="relative flex-shrink-0">
+                  <AlbumArt fileId={track.id} size="sm" />
+                  <div className="absolute inset-0 rounded-lg bg-black/40 flex items-center justify-center opacity-0 group-hover/qrow:opacity-100 transition-opacity">
+                    <PlayIcon className="w-4 h-4 text-white" />
+                  </div>
+                </div>
                 <div className="min-w-0">
-                  <p className="text-sm text-[var(--text-secondary)] truncate">
+                  <p className={`text-sm truncate ${isCurrent ? "text-[var(--accent)] font-medium" : "text-[var(--text-secondary)]"}`}>
                     {displayName}
                   </p>
                   <p className="text-xs text-[var(--text-muted)] truncate">
@@ -91,36 +82,17 @@ export function QueueView({
                   </p>
                 </div>
               </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Already Played */}
-      {played.length > 0 && (
-        <div className="px-4 py-3 border-t border-[var(--border)]">
-          <p className="text-xs font-mono text-[var(--text-faint)] uppercase tracking-widest mb-2">
-            Played
-          </p>
-          {played.map((track, i) => {
-            const displayName =
-              track.title || track.name.replace(/\.[^/.]+$/, "");
-
-            return (
               <button
-                key={`${track.id}-played-${i}`}
-                onClick={() => onPlayTrack(track, i)}
-                className="w-full flex items-center gap-3 py-2 hover:bg-[var(--bg-hover)] rounded transition-colors text-left opacity-50"
+                onClick={() => onRemoveFromQueue(index)}
+                className="flex-shrink-0 p-2 text-[var(--text-muted)] opacity-0 group-hover/qrow:opacity-100 hover:text-[var(--accent)] transition-all"
+                title="Remove from queue"
               >
-                <span className="text-xs font-mono text-[var(--text-faint)] w-6 text-right">
-                  {i + 1}
-                </span>
-                <p className="text-sm text-[var(--text-secondary)] truncate">{displayName}</p>
+                <CloseIcon className="w-4 h-4" />
               </button>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

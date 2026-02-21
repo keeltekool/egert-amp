@@ -1,6 +1,6 @@
 "use client";
 
-import { MusicNoteIcon, PlayIcon, PauseIcon, FolderIcon, HeartIcon, HeartFilledIcon } from "@/components/ui/icons";
+import { MusicNoteIcon, PlayIcon, PauseIcon, FolderIcon, HeartIcon, HeartFilledIcon, QueueAddIcon } from "@/components/ui/icons";
 import { AlbumArt } from "./album-art";
 import { Track } from "@/types/player";
 import { DriveFolder } from "@/lib/drive";
@@ -15,8 +15,8 @@ interface TrackListProps {
   likedIds: Set<string>;
   onPlayTrack: (track: Track, index: number) => void;
   onOpenFolder: (folder: DriveFolder) => void;
-  onPlayAll: (shuffled?: boolean) => void;
   onToggleLike: (fileId: string) => void;
+  onAddToQueue: (track: Track) => void;
 }
 
 export function TrackList({
@@ -29,8 +29,8 @@ export function TrackList({
   likedIds,
   onPlayTrack,
   onOpenFolder,
-  onPlayAll,
   onToggleLike,
+  onAddToQueue,
 }: TrackListProps) {
   if (loading) {
     return (
@@ -45,31 +45,15 @@ export function TrackList({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      {/* Header with play all */}
+      {/* Header */}
       {tracks.length > 0 && (
-        <div className="sticky top-0 z-10 bg-[var(--bg-primary)]/95 backdrop-blur-sm px-4 py-3 flex items-center justify-between border-b border-[var(--border)]">
-          <div>
-            <h2 className="font-semibold text-sm">
-              {currentFolderName || "Library"}
-            </h2>
-            <p className="text-xs text-[var(--text-muted)] font-mono">
-              {tracks.length} track{tracks.length !== 1 ? "s" : ""}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => onPlayAll(false)}
-              className="px-3 py-1.5 text-xs font-mono bg-[var(--accent-soft)] text-[var(--accent)] rounded-full hover:bg-[var(--accent)]/20 transition-colors"
-            >
-              Play All
-            </button>
-            <button
-              onClick={() => onPlayAll(true)}
-              className="px-3 py-1.5 text-xs font-mono bg-[var(--bg-card)] text-[var(--text-secondary)] rounded-full hover:bg-[var(--bg-hover)] transition-colors"
-            >
-              Shuffle
-            </button>
-          </div>
+        <div className="sticky top-0 z-10 bg-[var(--bg-primary)]/95 backdrop-blur-sm px-4 py-3 border-b border-[var(--border)]">
+          <h2 className="font-semibold text-sm">
+            {currentFolderName || "Library"}
+          </h2>
+          <p className="text-xs text-[var(--text-muted)] font-mono">
+            {tracks.length} track{tracks.length !== 1 ? "s" : ""}
+          </p>
         </div>
       )}
 
@@ -127,11 +111,21 @@ export function TrackList({
                 {displayName}
               </p>
               <p className="text-xs text-[var(--text-muted)] truncate font-mono">
-                {track.artist || track.mimeType.split("/")[1]?.toUpperCase() || "FLAC"}
-                {track.size &&
-                  ` · ${(parseInt(track.size, 10) / 1048576).toFixed(0)} MB`}
+                {track.artist || "Unknown artist"}
               </p>
             </div>
+
+            {/* Add to Queue button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToQueue(track);
+              }}
+              className="flex-shrink-0 p-2 text-[var(--text-muted)] opacity-0 group-hover/row:opacity-100 transition-opacity hover:text-[var(--accent)] hover:scale-110 active:scale-95"
+              title="Add to queue"
+            >
+              <QueueAddIcon className="w-4 h-4" />
+            </button>
 
             {/* Heart button */}
             <button

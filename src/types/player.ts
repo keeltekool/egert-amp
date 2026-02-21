@@ -15,8 +15,9 @@ export type RepeatMode = "off" | "one" | "all";
 
 export interface PlayerState {
   currentTrack: Track | null;
-  queue: Track[];
+  queue: Track[];          // Internal play order (library tracks)
   queueIndex: number;
+  userQueue: Track[];      // User's manual queue (added one-by-one)
   isPlaying: boolean;
   duration: number;
   currentTime: number;

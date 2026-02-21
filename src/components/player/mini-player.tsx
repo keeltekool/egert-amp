@@ -9,6 +9,8 @@ import {
   RepeatIcon,
   RepeatOneIcon,
   ChevronUpIcon,
+  VolumeIcon,
+  VolumeMuteIcon,
 } from "@/components/ui/icons";
 import { AlbumArt } from "./album-art";
 import { Track, RepeatMode } from "@/types/player";
@@ -27,12 +29,16 @@ interface MiniPlayerProps {
   duration: number;
   shuffle: boolean;
   repeat: RepeatMode;
+  volume: number;
+  isMuted: boolean;
   onTogglePlay: () => void;
   onNext: () => void;
   onPrev: () => void;
   onSeek: (time: number) => void;
   onToggleShuffle: () => void;
   onCycleRepeat: () => void;
+  onSetVolume: (vol: number) => void;
+  onToggleMute: () => void;
   onExpand: () => void;
 }
 
@@ -43,18 +49,23 @@ export function MiniPlayer({
   duration,
   shuffle,
   repeat,
+  volume,
+  isMuted,
   onTogglePlay,
   onNext,
   onPrev,
   onSeek,
   onToggleShuffle,
   onCycleRepeat,
+  onSetVolume,
+  onToggleMute,
   onExpand,
 }: MiniPlayerProps) {
   if (!track) return null;
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const displayName = track.title || track.name.replace(/\.[^/.]+$/, "");
+  const volumePercent = isMuted ? 0 : volume * 100;
 
   return (
     <div className="fixed bottom-16 left-0 right-0 z-40 bg-[var(--bg-secondary)] border-t-2 border-[var(--border)] shadow-[0_-2px_10px_rgba(0,0,0,0.12)]">
@@ -85,10 +96,19 @@ export function MiniPlayer({
         </span>
       </div>
 
-      {/* Main row: art + info + controls + expand */}
+      {/* Main row: art + info + volume + controls + expand */}
       <div className="flex items-center gap-3 px-3 pb-2 pt-1">
-        {/* Album art — bigger */}
-        <AlbumArt fileId={track.id} size="md" />
+        {/* Album art with play/pause overlay */}
+        <button onClick={onTogglePlay} className="relative flex-shrink-0 group/art">
+          <AlbumArt fileId={track.id} size="md" />
+          <div className="absolute inset-0 rounded-lg bg-black/40 flex items-center justify-center opacity-0 group-hover/art:opacity-100 transition-opacity">
+            {isPlaying ? (
+              <PauseIcon className="w-6 h-6 text-white" />
+            ) : (
+              <PlayIcon className="w-6 h-6 text-white" />
+            )}
+          </div>
+        </button>
 
         {/* Track info */}
         <div className="flex-1 min-w-0">
@@ -96,6 +116,37 @@ export function MiniPlayer({
           <p className="text-xs text-[var(--text-muted)] truncate">
             {track.artist || "Unknown artist"}
           </p>
+        </div>
+
+        {/* Volume control */}
+        <div className="hidden sm:flex items-center gap-1">
+          <button
+            onClick={onToggleMute}
+            className="p-1 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+            title={isMuted ? "Unmute" : "Mute"}
+          >
+            {isMuted || volume === 0 ? (
+              <VolumeMuteIcon className="w-4 h-4" />
+            ) : (
+              <VolumeIcon className="w-4 h-4" />
+            )}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.02}
+            value={isMuted ? 0 : volume}
+            onChange={(e) => onSetVolume(parseFloat(e.target.value))}
+            className="w-20 h-1 appearance-none rounded-full outline-none cursor-pointer
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5
+              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--accent)]
+              [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:h-2.5
+              [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[var(--accent)] [&::-moz-range-thumb]:border-0"
+            style={{
+              background: `linear-gradient(to right, var(--accent) ${volumePercent}%, var(--border-accent) ${volumePercent}%)`,
+            }}
+          />
         </div>
 
         {/* Transport controls */}

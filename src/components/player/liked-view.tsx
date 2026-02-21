@@ -9,7 +9,6 @@ interface LikedViewProps {
   currentTrack: Track | null;
   isPlaying: boolean;
   onPlayTrack: (track: Track, index: number) => void;
-  onPlayAll: (shuffled?: boolean) => void;
   onUnlike: (fileId: string) => void;
 }
 
@@ -18,7 +17,6 @@ export function LikedView({
   currentTrack,
   isPlaying,
   onPlayTrack,
-  onPlayAll,
   onUnlike,
 }: LikedViewProps) {
   if (tracks.length === 0) {
@@ -36,27 +34,11 @@ export function LikedView({
   return (
     <div className="flex-1 overflow-y-auto">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-[var(--bg-primary)]/95 backdrop-blur-sm px-4 py-3 flex items-center justify-between border-b border-[var(--border)]">
-        <div>
-          <h2 className="font-semibold text-sm">Liked Songs</h2>
-          <p className="text-xs text-[var(--text-muted)] font-mono">
-            {tracks.length} track{tracks.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => onPlayAll(false)}
-            className="px-3 py-1.5 text-xs font-mono bg-[var(--accent-soft)] text-[var(--accent)] rounded-full hover:bg-[var(--accent)]/20 transition-colors"
-          >
-            Play All
-          </button>
-          <button
-            onClick={() => onPlayAll(true)}
-            className="px-3 py-1.5 text-xs font-mono bg-[var(--bg-card)] text-[var(--text-secondary)] rounded-full hover:bg-[var(--bg-hover)] transition-colors"
-          >
-            Shuffle
-          </button>
-        </div>
+      <div className="sticky top-0 z-10 bg-[var(--bg-primary)]/95 backdrop-blur-sm px-4 py-3 border-b border-[var(--border)]">
+        <h2 className="font-semibold text-sm">Liked Songs</h2>
+        <p className="text-xs text-[var(--text-muted)] font-mono">
+          {tracks.length} track{tracks.length !== 1 ? "s" : ""}
+        </p>
       </div>
 
       {/* Liked tracks */}

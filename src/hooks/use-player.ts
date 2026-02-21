@@ -23,6 +23,7 @@ export function usePlayer() {
     currentTrack: null,
     queue: [],
     queueIndex: -1,
+    userQueue: [],
     isPlaying: false,
     duration: 0,
     currentTime: 0,
@@ -32,13 +33,18 @@ export function usePlayer() {
     repeat: "off",
   });
 
+  // Seek debounce: suppress timeupdate for 300ms after a programmatic seek
+  const lastSeekTimeRef = useRef(0);
+  // Track the preloaded file ID to avoid redundant loads
+  const preloadedIdRef = useRef<string | null>(null);
+
   // Initialize audio elements
   useEffect(() => {
     const audio = new Audio();
     audio.preload = "auto";
     audioRef.current = audio;
 
-    // Hidden preload element for next track
+    // Hidden preload element for next track — only starts after current plays
     const preload = new Audio();
     preload.preload = "auto";
     preload.volume = 0;
@@ -53,8 +59,12 @@ export function usePlayer() {
     }
 
     // Audio event handlers
-    const onTimeUpdate = () =>
+    const onTimeUpdate = () => {
+      // Suppress updates during/right after seeking to prevent snap-back
+      if (Date.now() - lastSeekTimeRef.current < 300) return;
+      if (audio.seeking) return;
       setState((s) => ({ ...s, currentTime: audio.currentTime }));
+    };
     const onDurationChange = () =>
       setState((s) => ({ ...s, duration: audio.duration || 0 }));
     const onPlay = () => setState((s) => ({ ...s, isPlaying: true }));
@@ -82,24 +92,46 @@ export function usePlayer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Preload next track when current track changes or queue advances
+  // Preload next track ONLY after current track starts playing
   useEffect(() => {
-    const { queue, queueIndex } = state;
-    const nextIndex = queueIndex + 1;
-    if (nextIndex < queue.length && preloadRef.current) {
-      const nextTrack = queue[nextIndex];
-      const nextUrl = getStreamUrl(nextTrack.id);
-      if (preloadRef.current.src !== nextUrl) {
-        preloadRef.current.src = nextUrl;
-        preloadRef.current.load();
+    const audio = audioRef.current;
+    const preload = preloadRef.current;
+    if (!audio || !preload) return;
+
+    // Preload priority: userQueue first, then library queue
+    const { userQueue, queue, queueIndex } = state;
+    let nextTrack: Track | undefined;
+    if (userQueue.length > 0) {
+      nextTrack = userQueue[0];
+    } else {
+      const nextIndex = queueIndex + 1;
+      if (nextIndex < queue.length) {
+        nextTrack = queue[nextIndex];
       }
     }
-  }, [state.queueIndex, state.queue]);
 
-  // Handle track ended — next track logic
+    if (!nextTrack) return;
+    if (preloadedIdRef.current === nextTrack.id) return;
+
+    const startPreload = () => {
+      if (!nextTrack || preloadedIdRef.current === nextTrack.id) return;
+      preloadedIdRef.current = nextTrack.id;
+      preload.src = getStreamUrl(nextTrack.id);
+      preload.load();
+    };
+
+    if (!audio.paused && audio.currentTime > 0) {
+      startPreload();
+    } else {
+      audio.addEventListener("playing", startPreload, { once: true });
+      return () => audio.removeEventListener("playing", startPreload);
+    }
+  }, [state.queueIndex, state.queue, state.userQueue]);
+
+  // Handle track ended — userQueue first, then library play order
   const handleTrackEnded = useCallback(() => {
     setState((prev) => {
-      const { repeat, queue, queueIndex } = prev;
+      const { repeat, queue, queueIndex, userQueue } = prev;
 
       if (repeat === "one") {
         if (audioRef.current) {
@@ -109,6 +141,22 @@ export function usePlayer() {
         return prev;
       }
 
+      // If user queue has tracks, consume the first one
+      if (userQueue.length > 0) {
+        const nextTrack = userQueue[0];
+        const remainingUserQueue = userQueue.slice(1);
+        if (audioRef.current) {
+          audioRef.current.src = getStreamUrl(nextTrack.id);
+          audioRef.current.play();
+        }
+        return {
+          ...prev,
+          currentTrack: nextTrack,
+          userQueue: remainingUserQueue,
+        };
+      }
+
+      // Otherwise advance in library play order
       let nextIndex = queueIndex + 1;
 
       if (nextIndex >= queue.length) {
@@ -137,6 +185,8 @@ export function usePlayer() {
   const playTrack = useCallback((track: Track, tracks: Track[], index: number) => {
     const audio = audioRef.current;
     if (!audio) return;
+
+    preloadedIdRef.current = null;
 
     audio.src = getStreamUrl(track.id);
     audio.play();
@@ -175,6 +225,7 @@ export function usePlayer() {
   const seek = useCallback((time: number) => {
     const audio = audioRef.current;
     if (!audio) return;
+    lastSeekTimeRef.current = Date.now();
     audio.currentTime = time;
     setState((s) => ({ ...s, currentTime: time }));
   }, []);
@@ -195,9 +246,24 @@ export function usePlayer() {
     setState((s) => ({ ...s, isMuted: !s.isMuted }));
   }, []);
 
+  // Next track: userQueue first, then library order
   const nextTrack = useCallback(() => {
     setState((prev) => {
-      const { queue, queueIndex, repeat } = prev;
+      const { queue, queueIndex, repeat, userQueue } = prev;
+
+      // Consume from user queue first
+      if (userQueue.length > 0) {
+        const track = userQueue[0];
+        const remainingUserQueue = userQueue.slice(1);
+        if (audioRef.current) {
+          preloadedIdRef.current = null;
+          audioRef.current.src = getStreamUrl(track.id);
+          audioRef.current.play();
+        }
+        return { ...prev, currentTrack: track, userQueue: remainingUserQueue };
+      }
+
+      // Otherwise advance in library
       let nextIndex = queueIndex + 1;
 
       if (nextIndex >= queue.length) {
@@ -207,6 +273,7 @@ export function usePlayer() {
 
       const track = queue[nextIndex];
       if (track && audioRef.current) {
+        preloadedIdRef.current = null;
         audioRef.current.src = getStreamUrl(track.id);
         audioRef.current.play();
       }
@@ -236,6 +303,7 @@ export function usePlayer() {
 
       const track = queue[prevIndex];
       if (track && audioRef.current) {
+        preloadedIdRef.current = null;
         audioRef.current.src = getStreamUrl(track.id);
         audioRef.current.play();
       }
@@ -272,7 +340,46 @@ export function usePlayer() {
     });
   }, []);
 
-  // Merge metadata into queue and current track
+  // Add a track to user queue (manually, one by one)
+  const addToQueue = useCallback((track: Track) => {
+    setState((prev) => ({
+      ...prev,
+      userQueue: [...prev.userQueue, track],
+    }));
+  }, []);
+
+  // Remove a track from user queue by index
+  const removeFromQueue = useCallback((index: number) => {
+    setState((prev) => ({
+      ...prev,
+      userQueue: prev.userQueue.filter((_, i) => i !== index),
+    }));
+  }, []);
+
+  // Clear ALL user queue tracks — total wipe
+  const clearQueue = useCallback(() => {
+    setState((prev) => ({ ...prev, userQueue: [] }));
+  }, []);
+
+  // Play a specific track from user queue by index (removes it from queue)
+  const playFromQueue = useCallback((index: number) => {
+    setState((prev) => {
+      const track = prev.userQueue[index];
+      if (!track) return prev;
+      if (audioRef.current) {
+        preloadedIdRef.current = null;
+        audioRef.current.src = getStreamUrl(track.id);
+        audioRef.current.play();
+      }
+      return {
+        ...prev,
+        currentTrack: track,
+        userQueue: prev.userQueue.filter((_, i) => i !== index),
+      };
+    });
+  }, []);
+
+  // Merge metadata into queue, userQueue, and current track
   const updateMetadata = useCallback(
     (meta: Record<string, { title?: string; artist?: string; album?: string }>) => {
       setState((prev) => {
@@ -280,11 +387,15 @@ export function usePlayer() {
           const m = meta[t.id];
           return m ? { ...t, ...m } : t;
         });
+        const userQueue = prev.userQueue.map((t) => {
+          const m = meta[t.id];
+          return m ? { ...t, ...m } : t;
+        });
         const currentTrack =
           prev.currentTrack && meta[prev.currentTrack.id]
             ? { ...prev.currentTrack, ...meta[prev.currentTrack.id] }
             : prev.currentTrack;
-        return { ...prev, queue, currentTrack };
+        return { ...prev, queue, userQueue, currentTrack };
       });
     },
     []
@@ -350,6 +461,10 @@ export function usePlayer() {
     toggleShuffle,
     setRepeat,
     cycleRepeat,
+    addToQueue,
+    removeFromQueue,
+    clearQueue,
+    playFromQueue,
     updateMetadata,
   };
 }

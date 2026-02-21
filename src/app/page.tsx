@@ -85,62 +85,82 @@ export default function Home() {
     }
   }, [session?.accessToken, fetchFiles]);
 
-  // Fetch metadata (title, artist, album) for tracks that don't have it yet
+  // Apply metadata results to tracks, folder cache, and player queue
+  const applyMetadata = useCallback(
+    (meta: Record<string, { title?: string; artist?: string; album?: string }>) => {
+      if (Object.keys(meta).length === 0) return;
+
+      setTracks((prev) => {
+        const updated = prev.map((t) => {
+          const m = meta[t.id];
+          return m ? { ...t, ...m } : t;
+        });
+
+        // Update folder cache with enriched tracks
+        const cacheKey =
+          breadcrumbs.length > 0
+            ? breadcrumbs[breadcrumbs.length - 1].id
+            : "__root__";
+        const cached = folderCacheRef.current.get(cacheKey);
+        if (cached) {
+          folderCacheRef.current.set(cacheKey, {
+            ...cached,
+            tracks: updated,
+          });
+        }
+
+        return updated;
+      });
+
+      player.updateMetadata(meta);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [breadcrumbs]
+  );
+
+  // Fetch metadata in small batches (20 IDs per request) for progressive loading
   useEffect(() => {
     const needMeta = tracks.filter(
       (t) => !t.artist && !t.title && !metadataFetchedRef.current.has(t.id)
     );
     if (needMeta.length === 0) return;
 
-    const fileIds = needMeta.map((t) => t.id);
-    fileIds.forEach((id) => metadataFetchedRef.current.add(id));
+    const allIds = needMeta.map((t) => t.id);
+    allIds.forEach((id) => metadataFetchedRef.current.add(id));
 
-    fetch("/api/drive/metadata", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fileIds }),
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then(
-        (
-          meta: Record<
-            string,
-            { title?: string; artist?: string; album?: string }
-          > | null
-        ) => {
-          if (!meta || Object.keys(meta).length === 0) return;
+    // Split into batches of 20 — each batch fires independently and updates UI on arrival
+    const BATCH_SIZE = 20;
+    for (let i = 0; i < allIds.length; i += BATCH_SIZE) {
+      const batchIds = allIds.slice(i, i + BATCH_SIZE);
 
-          setTracks((prev) => {
-            const updated = prev.map((t) => {
-              const m = meta[t.id];
-              return m ? { ...t, ...m } : t;
-            });
+      fetch("/api/drive/metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileIds: batchIds }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: { results?: Record<string, { title?: string; artist?: string; album?: string }>; failed?: string[] } | null) => {
+          if (!data) {
+            batchIds.forEach((id) => metadataFetchedRef.current.delete(id));
+            return;
+          }
 
-            // Update folder cache with enriched tracks
-            const cacheKey =
-              breadcrumbs.length > 0
-                ? breadcrumbs[breadcrumbs.length - 1].id
-                : "__root__";
-            const cached = folderCacheRef.current.get(cacheKey);
-            if (cached) {
-              folderCacheRef.current.set(cacheKey, {
-                ...cached,
-                tracks: updated,
-              });
-            }
+          // Handle both old flat format and new { results, failed } format
+          const meta = data.results || (data as Record<string, { title?: string; artist?: string; album?: string }>);
+          const failed: string[] = data.failed || [];
 
-            return updated;
-          });
+          if (failed.length > 0) {
+            failed.forEach((id) => metadataFetchedRef.current.delete(id));
+          }
 
-          // Also update the player queue/currentTrack
-          player.updateMetadata(meta);
-        }
-      )
-      .catch(() => {
-        /* metadata is non-critical */
-      });
+          applyMetadata(meta);
+        })
+        .catch(() => {
+          batchIds.forEach((id) => metadataFetchedRef.current.delete(id));
+        });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tracks, breadcrumbs]);
+  }, [tracks, breadcrumbs, applyMetadata]);
 
   const handleOpenFolder = useCallback(
     (folder: DriveFolder) => {
@@ -169,16 +189,9 @@ export default function Home() {
     [player, tracks]
   );
 
-  const handlePlayAll = useCallback(
-    (shuffled = false) => {
-      player.playAll(tracks, shuffled);
-    },
-    [player, tracks]
-  );
-
-  const handleQueuePlayTrack = useCallback(
-    (track: Track, index: number) => {
-      player.playTrack(track, player.queue, index);
+  const handlePlayFromQueue = useCallback(
+    (index: number) => {
+      player.playFromQueue(index);
     },
     [player]
   );
@@ -308,8 +321,8 @@ export default function Home() {
             likedIds={likedIds}
             onPlayTrack={handlePlayTrack}
             onOpenFolder={handleOpenFolder}
-            onPlayAll={handlePlayAll}
             onToggleLike={toggleLike}
+            onAddToQueue={player.addToQueue}
           />
         )}
         {tab === "liked" && (
@@ -318,7 +331,6 @@ export default function Home() {
             currentTrack={player.currentTrack}
             isPlaying={player.isPlaying}
             onPlayTrack={handleLikedPlayTrack}
-            onPlayAll={handleLikedPlayAll}
             onUnlike={toggleLike}
           />
         )}
@@ -345,11 +357,11 @@ export default function Home() {
         )}
         {tab === "queue" && (
           <QueueView
-            queue={player.queue}
-            queueIndex={player.queueIndex}
+            userQueue={player.userQueue}
             currentTrack={player.currentTrack}
-            isPlaying={player.isPlaying}
-            onPlayTrack={handleQueuePlayTrack}
+            onPlayFromQueue={handlePlayFromQueue}
+            onRemoveFromQueue={player.removeFromQueue}
+            onClearQueue={player.clearQueue}
           />
         )}
       </main>
@@ -363,12 +375,16 @@ export default function Home() {
           duration={player.duration}
           shuffle={player.shuffle}
           repeat={player.repeat}
+          volume={player.volume}
+          isMuted={player.isMuted}
           onTogglePlay={player.togglePlay}
           onNext={player.nextTrack}
           onPrev={player.prevTrack}
           onSeek={player.seek}
           onToggleShuffle={player.toggleShuffle}
           onCycleRepeat={player.cycleRepeat}
+          onSetVolume={player.setVolume}
+          onToggleMute={player.toggleMute}
           onExpand={() => setTab("playing")}
         />
       )}
@@ -407,12 +423,17 @@ export default function Home() {
         </button>
         <button
           onClick={() => setTab("queue")}
-          className={`flex flex-col items-center gap-1 py-3 px-4 transition-colors ${
+          className={`relative flex flex-col items-center gap-1 py-3 px-4 transition-colors ${
             tab === "queue" ? "text-[var(--accent)]" : "text-[var(--text-muted)]"
           }`}
         >
           <QueueIcon className="w-5 h-5" />
           <span className="text-[10px] font-mono uppercase tracking-wider">Queue</span>
+          {player.userQueue.length > 0 && (
+            <span className="absolute top-2 right-2 w-4 h-4 text-[8px] font-mono font-bold bg-[var(--accent)] text-[var(--play-btn-text)] rounded-full flex items-center justify-center">
+              {player.userQueue.length > 9 ? "9+" : player.userQueue.length}
+            </span>
+          )}
         </button>
       </nav>
     </div>
