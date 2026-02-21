@@ -115,30 +115,30 @@ export function TrackList({
               </p>
             </div>
 
-            {/* Add to Queue button */}
+            {/* Add to Queue button — always visible on mobile */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onAddToQueue(track);
               }}
-              className="flex-shrink-0 p-2 text-[var(--text-muted)] opacity-0 group-hover/row:opacity-100 transition-opacity hover:text-[var(--accent)] hover:scale-110 active:scale-95"
+              className="flex-shrink-0 p-2 text-[var(--text-faint)] md:opacity-0 md:group-hover/row:opacity-100 transition-all hover:text-[var(--accent)] active:text-[var(--accent)] active:scale-95"
               title="Add to queue"
             >
               <QueueAddIcon className="w-4 h-4" />
             </button>
 
-            {/* Heart button */}
+            {/* Heart button — always visible on mobile */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleLike(track.id);
               }}
-              className="flex-shrink-0 p-2 transition-colors hover:scale-110 active:scale-95"
+              className="flex-shrink-0 p-2 transition-all active:scale-95"
             >
               {likedIds.has(track.id) ? (
                 <HeartFilledIcon className="w-4 h-4 text-[var(--accent)]" />
               ) : (
-                <HeartIcon className="w-4 h-4 text-[var(--text-muted)] opacity-0 group-hover/row:opacity-100 transition-opacity" />
+                <HeartIcon className="w-4 h-4 text-[var(--text-faint)] md:opacity-0 md:group-hover/row:opacity-100 transition-opacity" />
               )}
             </button>
           </button>
