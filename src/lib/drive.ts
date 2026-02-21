@@ -47,6 +47,8 @@ export async function listAudioFiles(
       fields: "nextPageToken, files(id, name, mimeType, size, parents)",
       pageSize: "1000",
       orderBy: "name",
+      includeItemsFromAllDrives: "true",
+      supportsAllDrives: "true",
     });
     if (pageToken) params.set("pageToken", pageToken);
 
@@ -80,6 +82,8 @@ export async function listFolders(
     fields: "files(id, name)",
     pageSize: "100",
     orderBy: "name",
+    includeItemsFromAllDrives: "true",
+    supportsAllDrives: "true",
   });
 
   const res = await fetch(`${DRIVE_API}/files?${params}`, {
