@@ -1,6 +1,6 @@
 "use client";
 
-import { MusicNoteIcon, PlayIcon, PauseIcon, FolderIcon } from "@/components/ui/icons";
+import { MusicNoteIcon, PlayIcon, PauseIcon, FolderIcon, HeartIcon, HeartFilledIcon } from "@/components/ui/icons";
 import { AlbumArt } from "./album-art";
 import { Track } from "@/types/player";
 import { DriveFolder } from "@/lib/drive";
@@ -12,9 +12,11 @@ interface TrackListProps {
   isPlaying: boolean;
   loading: boolean;
   currentFolderName?: string;
+  likedIds: Set<string>;
   onPlayTrack: (track: Track, index: number) => void;
   onOpenFolder: (folder: DriveFolder) => void;
   onPlayAll: (shuffled?: boolean) => void;
+  onToggleLike: (fileId: string) => void;
 }
 
 export function TrackList({
@@ -24,9 +26,11 @@ export function TrackList({
   isPlaying,
   loading,
   currentFolderName,
+  likedIds,
   onPlayTrack,
   onOpenFolder,
   onPlayAll,
+  onToggleLike,
 }: TrackListProps) {
   if (loading) {
     return (
@@ -128,6 +132,21 @@ export function TrackList({
                   ` · ${(parseInt(track.size, 10) / 1048576).toFixed(0)} MB`}
               </p>
             </div>
+
+            {/* Heart button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleLike(track.id);
+              }}
+              className="flex-shrink-0 p-2 transition-colors hover:scale-110 active:scale-95"
+            >
+              {likedIds.has(track.id) ? (
+                <HeartFilledIcon className="w-4 h-4 text-[var(--accent)]" />
+              ) : (
+                <HeartIcon className="w-4 h-4 text-[var(--text-muted)] opacity-0 group-hover/row:opacity-100 transition-opacity" />
+              )}
+            </button>
           </button>
         );
       })}

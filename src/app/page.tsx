@@ -3,16 +3,18 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePlayer } from "@/hooks/use-player";
+import { useLikes } from "@/hooks/use-likes";
 import { useTheme } from "@/components/theme-provider";
 import { TrackList } from "@/components/player/track-list";
 import { NowPlaying } from "@/components/player/now-playing";
 import { QueueView } from "@/components/player/queue-view";
+import { LikedView } from "@/components/player/liked-view";
 import { MiniPlayer } from "@/components/player/mini-player";
-import { PlayIcon, MusicNoteIcon, QueueIcon, SignOutIcon, SunIcon, MoonIcon } from "@/components/ui/icons";
+import { PlayIcon, MusicNoteIcon, QueueIcon, SignOutIcon, SunIcon, MoonIcon, HeartFilledIcon } from "@/components/ui/icons";
 import { Track } from "@/types/player";
 import { DriveFile, DriveFolder } from "@/lib/drive";
 
-type Tab = "library" | "playing" | "queue";
+type Tab = "library" | "liked" | "playing" | "queue";
 
 interface FolderBreadcrumb {
   id: string;
@@ -23,6 +25,7 @@ export default function Home() {
   const { data: session, status } = useSession();
   const player = usePlayer();
   const { theme, toggleTheme } = useTheme();
+  const { likedIds, isLiked, toggleLike } = useLikes(status === "authenticated");
 
   const [tab, setTab] = useState<Tab>("library");
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -180,6 +183,31 @@ export default function Home() {
     [player]
   );
 
+  // Build liked tracks list from all cached folders
+  const allCachedTracks = Array.from(folderCacheRef.current.values()).flatMap((c) => c.tracks);
+  const likedTracks = allCachedTracks.filter((t) => likedIds.has(t.id));
+
+  const handleLikedPlayTrack = useCallback(
+    (track: Track, index: number) => {
+      const liked = allCachedTracks.filter((t) => likedIds.has(t.id));
+      player.playTrack(track, liked, index);
+      if (window.innerWidth < 768) {
+        setTab("playing");
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [player, likedIds]
+  );
+
+  const handleLikedPlayAll = useCallback(
+    (shuffled = false) => {
+      const liked = allCachedTracks.filter((t) => likedIds.has(t.id));
+      player.playAll(liked, shuffled);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [player, likedIds]
+  );
+
   // Loading screen
   if (status === "loading") {
     return (
@@ -277,9 +305,21 @@ export default function Home() {
             isPlaying={player.isPlaying}
             loading={loading}
             currentFolderName={currentFolderName}
+            likedIds={likedIds}
             onPlayTrack={handlePlayTrack}
             onOpenFolder={handleOpenFolder}
             onPlayAll={handlePlayAll}
+            onToggleLike={toggleLike}
+          />
+        )}
+        {tab === "liked" && (
+          <LikedView
+            tracks={likedTracks}
+            currentTrack={player.currentTrack}
+            isPlaying={player.isPlaying}
+            onPlayTrack={handleLikedPlayTrack}
+            onPlayAll={handleLikedPlayAll}
+            onUnlike={toggleLike}
           />
         )}
         {tab === "playing" && (
@@ -292,6 +332,7 @@ export default function Home() {
             repeat={player.repeat}
             queueIndex={player.queueIndex}
             queueLength={player.queue.length}
+            isLiked={player.currentTrack ? isLiked(player.currentTrack.id) : false}
             onTogglePlay={player.togglePlay}
             onNext={player.nextTrack}
             onPrev={player.prevTrack}
@@ -299,6 +340,7 @@ export default function Home() {
             onToggleShuffle={player.toggleShuffle}
             onCycleRepeat={player.cycleRepeat}
             onClose={() => setTab("library")}
+            onToggleLike={() => player.currentTrack && toggleLike(player.currentTrack.id)}
           />
         )}
         {tab === "queue" && (
@@ -335,7 +377,7 @@ export default function Home() {
       <nav className="flex-shrink-0 flex items-center justify-around border-t border-[var(--border)] bg-[var(--bg-primary)] px-2 pb-safe">
         <button
           onClick={() => setTab("library")}
-          className={`flex flex-col items-center gap-1 py-3 px-6 transition-colors ${
+          className={`flex flex-col items-center gap-1 py-3 px-4 transition-colors ${
             tab === "library" ? "text-[var(--accent)]" : "text-[var(--text-muted)]"
           }`}
         >
@@ -343,8 +385,20 @@ export default function Home() {
           <span className="text-[10px] font-mono uppercase tracking-wider">Library</span>
         </button>
         <button
+          onClick={() => setTab("liked")}
+          className={`relative flex flex-col items-center gap-1 py-3 px-4 transition-colors ${
+            tab === "liked" ? "text-[var(--accent)]" : "text-[var(--text-muted)]"
+          }`}
+        >
+          <HeartFilledIcon className="w-5 h-5" />
+          <span className="text-[10px] font-mono uppercase tracking-wider">Liked</span>
+          {likedIds.size > 0 && (
+            <span className="absolute top-2 right-2 w-2 h-2 bg-[var(--accent)] rounded-full" />
+          )}
+        </button>
+        <button
           onClick={() => setTab("playing")}
-          className={`flex flex-col items-center gap-1 py-3 px-6 transition-colors ${
+          className={`flex flex-col items-center gap-1 py-3 px-4 transition-colors ${
             tab === "playing" ? "text-[var(--accent)]" : "text-[var(--text-muted)]"
           }`}
         >
@@ -353,7 +407,7 @@ export default function Home() {
         </button>
         <button
           onClick={() => setTab("queue")}
-          className={`flex flex-col items-center gap-1 py-3 px-6 transition-colors ${
+          className={`flex flex-col items-center gap-1 py-3 px-4 transition-colors ${
             tab === "queue" ? "text-[var(--accent)]" : "text-[var(--text-muted)]"
           }`}
         >

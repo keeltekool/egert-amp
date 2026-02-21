@@ -1,6 +1,6 @@
 "use client";
 
-import { MusicNoteIcon, ChevronLeftIcon } from "@/components/ui/icons";
+import { MusicNoteIcon, ChevronLeftIcon, HeartIcon, HeartFilledIcon } from "@/components/ui/icons";
 import { AlbumArt } from "./album-art";
 import { PlayerControls } from "./player-controls";
 import { Track, RepeatMode } from "@/types/player";
@@ -14,6 +14,7 @@ interface NowPlayingProps {
   repeat: RepeatMode;
   queueIndex: number;
   queueLength: number;
+  isLiked: boolean;
   onTogglePlay: () => void;
   onNext: () => void;
   onPrev: () => void;
@@ -21,6 +22,7 @@ interface NowPlayingProps {
   onToggleShuffle: () => void;
   onCycleRepeat: () => void;
   onClose: () => void;
+  onToggleLike: () => void;
 }
 
 export function NowPlaying({
@@ -39,6 +41,8 @@ export function NowPlaying({
   onToggleShuffle,
   onCycleRepeat,
   onClose,
+  onToggleLike,
+  isLiked,
 }: NowPlayingProps) {
   if (!track) {
     return (
@@ -71,13 +75,25 @@ export function NowPlaying({
         <AlbumArt fileId={track.id} size="lg" className="shadow-[0_0_40px_var(--glow-art)]" />
       </div>
 
-      {/* Track info */}
-      <div className="w-full text-center mt-6 mb-4">
-        <h2 className="text-lg font-semibold truncate px-4">{displayName}</h2>
-        <p className="text-sm text-[var(--text-muted)] mt-1 truncate">
+      {/* Track info + heart */}
+      <div className="w-full mt-6 mb-4">
+        <div className="flex items-center justify-center gap-3 px-4">
+          <h2 className="text-lg font-semibold truncate">{displayName}</h2>
+          <button
+            onClick={onToggleLike}
+            className="flex-shrink-0 p-1 transition-transform hover:scale-110 active:scale-95"
+          >
+            {isLiked ? (
+              <HeartFilledIcon className="w-5 h-5 text-[var(--accent)]" />
+            ) : (
+              <HeartIcon className="w-5 h-5 text-[var(--text-muted)]" />
+            )}
+          </button>
+        </div>
+        <p className="text-sm text-[var(--text-muted)] mt-1 truncate text-center">
           {track.artist || "Unknown artist"}
         </p>
-        <p className="text-xs font-mono text-[var(--text-faint)] mt-2">
+        <p className="text-xs font-mono text-[var(--text-faint)] mt-2 text-center">
           {queueIndex + 1} / {queueLength}
         </p>
       </div>
